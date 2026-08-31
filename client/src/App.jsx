@@ -1,27 +1,185 @@
 import { useState, useEffect } from "react";
-import { Link, Routes, Route, useNavigate } from "react-router-dom";
+import {
+  Link,
+  Routes,
+  Route,
+  useNavigate,
+  Navigate
+} from "react-router-dom";
 import axios from "axios";
 import "./App.css";
 
+/* =========================
+   API CONFIG
+========================= */
+
+const API_URL = (
+  import.meta.env.VITE_API_URL ||
+  "http://localhost:5000"
+).replace(/\/$/, "");
+
+
+/* =========================
+   AUTH HELPERS
+========================= */
+
+const getToken = () => {
+  return localStorage.getItem("token");
+};
+
+const getUser = () => {
+  try {
+    return JSON.parse(localStorage.getItem("user")) || null;
+  } catch {
+    return null;
+  }
+};
+
+const authConfig = () => ({
+  headers: {
+    Authorization: `Bearer ${getToken()}`
+  }
+});
+
+
+/* =========================
+   PROTECTED ROUTE
+========================= */
+
+function ProtectedRoute({ children }) {
+  const token = getToken();
+
+  if (!token) {
+    return <Navigate to="/" replace />;
+  }
+
+  return children;
+}
+
+
+/* =========================
+   SIDEBAR
+========================= */
+
+function CustomerSidebar({ active }) {
+  const user = getUser();
+
+  const name = user?.name || "Customer";
+  const email = user?.email || "customer@test.com";
+
+  const initial = name.charAt(0).toUpperCase();
+
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+  };
+
+  return (
+    <aside className="sidebar">
+
+      <div className="sidebar-brand">
+
+        <div className="brand-icon">
+          S
+        </div>
+
+        <div>
+          <h2>SupportDesk</h2>
+          <span>Customer Portal</span>
+        </div>
+
+      </div>
+
+
+      <nav className="sidebar-nav">
+
+        <Link
+          to="/dashboard"
+          className={`nav-item ${
+            active === "dashboard" ? "active" : ""
+          }`}
+        >
+          <span>⌂</span>
+          Dashboard
+        </Link>
+
+
+        <Link
+          to="/tickets"
+          className={`nav-item ${
+            active === "tickets" ? "active" : ""
+          }`}
+        >
+          <span>🎫</span>
+          My Tickets
+        </Link>
+
+
+        <Link
+          to="/create-ticket"
+          className={`nav-item ${
+            active === "create" ? "active" : ""
+          }`}
+        >
+          <span>＋</span>
+          Create Ticket
+        </Link>
+
+      </nav>
+
+
+      <div className="sidebar-bottom">
+
+        <div className="user-mini">
+
+          <div className="avatar">
+            {initial}
+          </div>
+
+          <div>
+            <strong>{name}</strong>
+            <span>{email}</span>
+          </div>
+
+        </div>
+
+
+        <Link
+          to="/"
+          className="logout-btn"
+          onClick={handleLogout}
+        >
+          ↪ Logout
+        </Link>
+
+      </div>
+
+    </aside>
+  );
+}
+
+
+/* =========================
+   CUSTOMER DASHBOARD
+========================= */
+
 function CustomerDashboard() {
+
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+
   const fetchTickets = async () => {
+
     try {
+
       setLoading(true);
       setError("");
 
-      const token = localStorage.getItem("token");
-
       const response = await axios.get(
-        "http://localhost:5000/api/tickets/my",
-        {
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
-        }
+        `${API_URL}/api/tickets/my`,
+        authConfig()
       );
 
       setTickets(
@@ -31,26 +189,38 @@ function CustomerDashboard() {
       );
 
     } catch (err) {
-      console.error("Fetch tickets error:", err);
+
+      console.error(
+        "Fetch tickets error:",
+        err
+      );
 
       setError(
         err.response?.data?.message ||
         "Failed to load tickets."
       );
+
     } finally {
+
       setLoading(false);
+
     }
   };
+
 
   useEffect(() => {
     fetchTickets();
   }, []);
 
+
   const totalTickets = tickets.length;
 
+
   const newTickets = tickets.filter(
-    (ticket) => ticket.status === "New"
+    (ticket) =>
+      ticket.status === "New"
   ).length;
+
 
   const inProgressTickets = tickets.filter(
     (ticket) =>
@@ -58,89 +228,37 @@ function CustomerDashboard() {
       ticket.status === "In Progress"
   ).length;
 
+
   const resolvedTickets = tickets.filter(
-    (ticket) => ticket.status === "Resolved"
+    (ticket) =>
+      ticket.status === "Resolved"
   ).length;
 
+
   return (
+
     <div className="dashboard-page">
 
-      {/* Sidebar */}
-      <aside className="sidebar">
-
-        <div className="sidebar-brand">
-          <div className="brand-icon">S</div>
-
-          <div>
-            <h2>SupportDesk</h2>
-            <span>Customer Portal</span>
-          </div>
-        </div>
-
-        <nav className="sidebar-nav">
-
-          <Link
-            to="/dashboard"
-            className="nav-item active"
-          >
-            <span>⌂</span>
-            Dashboard
-          </Link>
-
-          <Link
-            to="/tickets"
-            className="nav-item"
-          >
-            <span>🎫</span>
-            My Tickets
-          </Link>
-
-          <Link
-            to="/create-ticket"
-            className="nav-item"
-          >
-            <span>＋</span>
-            Create Ticket
-          </Link>
-
-        </nav>
-
-        <div className="sidebar-bottom">
-
-          <div className="user-mini">
-            <div className="avatar">N</div>
-
-            <div>
-              <strong>Customer</strong>
-              <span>customer@test.com</span>
-            </div>
-          </div>
-
-          <Link
-            to="/"
-            className="logout-btn"
-          >
-            ↪ Logout
-          </Link>
-
-        </div>
-
-      </aside>
+      <CustomerSidebar active="dashboard" />
 
 
-      {/* Main */}
       <main className="dashboard-main">
 
         <header className="dashboard-header">
 
           <div>
-            <h1>Dashboard</h1>
+
+            <h1>
+              Dashboard
+            </h1>
 
             <p>
               Welcome back! Here's what's happening
               with your tickets.
             </p>
+
           </div>
+
 
           <Link
             to="/create-ticket"
@@ -152,7 +270,6 @@ function CustomerDashboard() {
         </header>
 
 
-        {/* Error */}
         {error && (
           <div className="alert error-alert">
             ⚠ {error}
@@ -160,71 +277,98 @@ function CustomerDashboard() {
         )}
 
 
-        {/* Statistics */}
         <section className="stats-grid">
 
           <div className="stat-card">
-            <div className="stat-icon">🎫</div>
+
+            <div className="stat-icon">
+              🎫
+            </div>
 
             <div>
               <span>Total Tickets</span>
+
               <strong>
                 {loading ? "..." : totalTickets}
               </strong>
             </div>
+
           </div>
 
 
           <div className="stat-card">
-            <div className="stat-icon">🆕</div>
+
+            <div className="stat-icon">
+              🆕
+            </div>
 
             <div>
               <span>New</span>
+
               <strong>
                 {loading ? "..." : newTickets}
               </strong>
             </div>
+
           </div>
 
 
           <div className="stat-card">
-            <div className="stat-icon">◔</div>
+
+            <div className="stat-icon">
+              ◔
+            </div>
 
             <div>
               <span>In Progress</span>
+
               <strong>
-                {loading ? "..." : inProgressTickets}
+                {loading
+                  ? "..."
+                  : inProgressTickets}
               </strong>
             </div>
+
           </div>
 
 
           <div className="stat-card">
-            <div className="stat-icon">✓</div>
+
+            <div className="stat-icon">
+              ✓
+            </div>
 
             <div>
               <span>Resolved</span>
+
               <strong>
-                {loading ? "..." : resolvedTickets}
+                {loading
+                  ? "..."
+                  : resolvedTickets}
               </strong>
             </div>
+
           </div>
 
         </section>
 
 
-        {/* Tickets */}
         <section className="tickets-section">
 
           <div className="section-header">
 
             <div>
-              <h2>Recent Tickets</h2>
+
+              <h2>
+                Recent Tickets
+              </h2>
 
               <p>
                 Track your latest support requests.
               </p>
+
             </div>
+
 
             <Link to="/tickets">
               View all →
@@ -236,8 +380,13 @@ function CustomerDashboard() {
           {loading ? (
 
             <div className="empty-state">
+
               <div className="loading-spinner"></div>
-              <p>Loading your tickets...</p>
+
+              <p>
+                Loading your tickets...
+              </p>
+
             </div>
 
           ) : tickets.length === 0 ? (
@@ -248,7 +397,9 @@ function CustomerDashboard() {
                 🎫
               </div>
 
-              <h3>No tickets yet</h3>
+              <h3>
+                No tickets yet
+              </h3>
 
               <p>
                 You haven't created any support tickets.
@@ -268,15 +419,19 @@ function CustomerDashboard() {
             <div className="ticket-table">
 
               <div className="ticket-table-header">
+
                 <span>Ticket</span>
                 <span>Category</span>
                 <span>Priority</span>
                 <span>Status</span>
                 <span>Created</span>
+
               </div>
 
 
-              {tickets.slice(0, 5).map((ticket) => (
+              {tickets
+                .slice(0, 5)
+                .map((ticket) => (
 
                 <div
                   className="ticket-row"
@@ -303,7 +458,10 @@ function CustomerDashboard() {
 
                   <span
                     className={`priority-badge ${
-                      ticket.priority?.toLowerCase()
+                      (
+                        ticket.priority ||
+                        "Medium"
+                      ).toLowerCase()
                     }`}
                   >
                     {ticket.priority || "Medium"}
@@ -324,9 +482,11 @@ function CustomerDashboard() {
 
 
                   <span className="ticket-date">
-                    {new Date(
-                      ticket.createdAt
-                    ).toLocaleDateString()}
+                    {ticket.createdAt
+                      ? new Date(
+                          ticket.createdAt
+                        ).toLocaleDateString()
+                      : "-"}
                   </span>
 
                 </div>
@@ -346,7 +506,261 @@ function CustomerDashboard() {
 }
 
 
+/* =========================
+   MY TICKETS
+========================= */
+
+function MyTickets() {
+
+  const [tickets, setTickets] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+
+  const fetchTickets = async () => {
+
+    try {
+
+      setLoading(true);
+      setError("");
+
+      const response = await axios.get(
+        `${API_URL}/api/tickets/my`,
+        authConfig()
+      );
+
+      setTickets(
+        response.data.tickets ||
+        response.data ||
+        []
+      );
+
+    } catch (err) {
+
+      console.error(
+        "Fetch tickets error:",
+        err
+      );
+
+      setError(
+        err.response?.data?.message ||
+        "Failed to load tickets."
+      );
+
+    } finally {
+
+      setLoading(false);
+
+    }
+  };
+
+
+  useEffect(() => {
+    fetchTickets();
+  }, []);
+
+
+  return (
+
+    <div className="dashboard-page">
+
+      <CustomerSidebar active="tickets" />
+
+
+      <main className="dashboard-main">
+
+        <header className="dashboard-header">
+
+          <div>
+
+            <h1>
+              My Tickets
+            </h1>
+
+            <p>
+              View and track all your support requests.
+            </p>
+
+          </div>
+
+
+          <Link
+            to="/create-ticket"
+            className="new-ticket-btn"
+          >
+            + New Ticket
+          </Link>
+
+        </header>
+
+
+        {error && (
+          <div className="alert error-alert">
+            ⚠ {error}
+          </div>
+        )}
+
+
+        <section className="tickets-section">
+
+          <div className="section-header">
+
+            <div>
+
+              <h2>
+                All Tickets
+              </h2>
+
+              <p>
+                {loading
+                  ? "Loading tickets..."
+                  : `${tickets.length} ticket${
+                      tickets.length === 1
+                        ? ""
+                        : "s"
+                    } found`}
+              </p>
+
+            </div>
+
+          </div>
+
+
+          {loading ? (
+
+            <div className="empty-state">
+
+              <div className="loading-spinner"></div>
+
+              <p>
+                Loading your tickets...
+              </p>
+
+            </div>
+
+          ) : tickets.length === 0 ? (
+
+            <div className="empty-state">
+
+              <div className="empty-icon">
+                🎫
+              </div>
+
+              <h3>
+                No tickets found
+              </h3>
+
+              <p>
+                Create a ticket if you need help.
+              </p>
+
+              <Link
+                to="/create-ticket"
+                className="new-ticket-btn"
+              >
+                Create Ticket
+              </Link>
+
+            </div>
+
+          ) : (
+
+            <div className="ticket-table">
+
+              <div className="ticket-table-header">
+
+                <span>Ticket</span>
+                <span>Category</span>
+                <span>Priority</span>
+                <span>Status</span>
+                <span>Created</span>
+
+              </div>
+
+
+              {tickets.map((ticket) => (
+
+                <div
+                  className="ticket-row"
+                  key={ticket._id}
+                >
+
+                  <div className="ticket-info">
+
+                    <strong>
+                      {ticket.ticketNumber}
+                    </strong>
+
+                    <span>
+                      {ticket.subject}
+                    </span>
+
+                  </div>
+
+
+                  <span className="category-badge">
+                    {ticket.category || "Other"}
+                  </span>
+
+
+                  <span
+                    className={`priority-badge ${
+                      (
+                        ticket.priority ||
+                        "Medium"
+                      ).toLowerCase()
+                    }`}
+                  >
+                    {ticket.priority || "Medium"}
+                  </span>
+
+
+                  <span
+                    className={`status-badge ${
+                      ticket.status === "Resolved"
+                        ? "resolved"
+                        : ticket.status === "In Progress"
+                        ? "progress"
+                        : "new"
+                    }`}
+                  >
+                    {ticket.status}
+                  </span>
+
+
+                  <span className="ticket-date">
+
+                    {ticket.createdAt
+                      ? new Date(
+                          ticket.createdAt
+                        ).toLocaleDateString()
+                      : "-"}
+
+                  </span>
+
+                </div>
+
+              ))}
+
+            </div>
+
+          )}
+
+        </section>
+
+      </main>
+
+    </div>
+  );
+}
+
+
+/* =========================
+   CREATE TICKET
+========================= */
+
 function CreateTicket() {
+
   const navigate = useNavigate();
 
   const [subject, setSubject] = useState("");
@@ -357,46 +771,87 @@ function CreateTicket() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
+
   const handleSubmit = async (e) => {
+
     e.preventDefault();
 
     setError("");
     setSuccess("");
 
-    if (!subject.trim() || !description.trim()) {
-      setError("Subject and description are required.");
+
+    if (
+      !subject.trim() ||
+      !description.trim()
+    ) {
+
+      setError(
+        "Subject and description are required."
+      );
+
       return;
     }
 
-    try {
-      setLoading(true);
 
-      const token = localStorage.getItem("token");
+    const token = getToken();
 
-      const response = await axios.post(
-        "http://localhost:5000/api/tickets",
-        {
-          subject,
-          description,
-          ...(category && { category })
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
-        }
+    if (!token) {
+
+      setError(
+        "Please login before creating a ticket."
       );
 
-      console.log("Ticket created:", response.data);
+      return;
+    }
 
-      setSuccess("Ticket created successfully!");
+
+    try {
+
+      setLoading(true);
+
+
+      const response = await axios.post(
+        `${API_URL}/api/tickets`,
+        {
+          subject: subject.trim(),
+          description: description.trim(),
+          ...(category
+            ? { category }
+            : {})
+        },
+        authConfig()
+      );
+
+
+      console.log(
+        "Ticket created:",
+        response.data
+      );
+
+
+      setSuccess(
+        response.data.message ||
+        "Ticket created successfully!"
+      );
+
+
+      setSubject("");
+      setCategory("");
+      setDescription("");
+
 
       setTimeout(() => {
         navigate("/dashboard");
       }, 1500);
 
+
     } catch (err) {
-      console.error(err);
+
+      console.error(
+        "Create ticket error:",
+        err
+      );
+
 
       setError(
         err.response?.data?.message ||
@@ -404,98 +859,45 @@ function CreateTicket() {
       );
 
     } finally {
+
       setLoading(false);
+
     }
   };
 
+
   return (
+
     <div className="dashboard-page">
 
-      {/* Sidebar */}
-      <aside className="sidebar">
-
-        <div className="sidebar-brand">
-          <div className="brand-icon">S</div>
-
-          <div>
-            <h2>SupportDesk</h2>
-            <span>Customer Portal</span>
-          </div>
-        </div>
-
-        <nav className="sidebar-nav">
-
-          <Link
-            to="/dashboard"
-            className="nav-item"
-          >
-            <span>⌂</span>
-            Dashboard
-          </Link>
-
-          <Link
-            to="/tickets"
-            className="nav-item"
-          >
-            <span>🎫</span>
-            My Tickets
-          </Link>
-
-          <Link
-            to="/create-ticket"
-            className="nav-item active"
-          >
-            <span>＋</span>
-            Create Ticket
-          </Link>
-
-        </nav>
-
-        <div className="sidebar-bottom">
-
-          <div className="user-mini">
-            <div className="avatar">N</div>
-
-            <div>
-              <strong>Customer</strong>
-              <span>customer@test.com</span>
-            </div>
-          </div>
-
-          <Link
-            to="/"
-            className="logout-btn"
-          >
-            ↪ Logout
-          </Link>
-
-        </div>
-
-      </aside>
+      <CustomerSidebar active="create" />
 
 
-      {/* Main */}
       <main className="dashboard-main">
 
         <div className="page-back">
+
           <Link to="/dashboard">
             ← Back to Dashboard
           </Link>
+
         </div>
+
 
         <div className="form-page-header">
 
-          <h1>Create New Ticket</h1>
+          <h1>
+            Create New Ticket
+          </h1>
 
           <p>
-            Tell us about your issue and our support team
-            will help you resolve it.
+            Tell us about your issue and our support
+            team will help you resolve it.
           </p>
 
         </div>
 
 
-        {/* Error */}
         {error && (
           <div className="alert error-alert">
             ⚠ {error}
@@ -503,7 +905,6 @@ function CreateTicket() {
         )}
 
 
-        {/* Success */}
         {success && (
           <div className="alert success-alert">
             ✓ {success}
@@ -513,15 +914,21 @@ function CreateTicket() {
 
         <div className="create-ticket-layout">
 
-          {/* Form */}
+
+          {/* FORM */}
+
           <div className="ticket-form-card">
 
             <div className="form-card-header">
-              <h2>Ticket Information</h2>
+
+              <h2>
+                Ticket Information
+              </h2>
 
               <p>
                 Please provide as much detail as possible.
               </p>
+
             </div>
 
 
@@ -529,6 +936,9 @@ function CreateTicket() {
               className="ticket-form"
               onSubmit={handleSubmit}
             >
+
+
+              {/* SUBJECT */}
 
               <div className="form-group">
 
@@ -543,10 +953,13 @@ function CreateTicket() {
                   onChange={(e) =>
                     setSubject(e.target.value)
                   }
+                  required
                 />
 
               </div>
 
+
+              {/* CATEGORY */}
 
               <div className="form-group">
 
@@ -600,6 +1013,8 @@ function CreateTicket() {
               </div>
 
 
+              {/* DESCRIPTION */}
+
               <div className="form-group">
 
                 <label>
@@ -611,8 +1026,11 @@ function CreateTicket() {
                   placeholder="Explain your issue in detail..."
                   value={description}
                   onChange={(e) =>
-                    setDescription(e.target.value)
+                    setDescription(
+                      e.target.value
+                    )
                   }
+                  required
                 />
 
                 <small>
@@ -623,6 +1041,8 @@ function CreateTicket() {
               </div>
 
 
+              {/* ACTIONS */}
+
               <div className="ticket-form-actions">
 
                 <Link
@@ -632,14 +1052,17 @@ function CreateTicket() {
                   Cancel
                 </Link>
 
+
                 <button
                   type="submit"
                   className="login-btn submit-ticket-btn"
                   disabled={loading}
                 >
+
                   {loading
                     ? "Creating Ticket..."
                     : "Submit Ticket"}
+
                 </button>
 
               </div>
@@ -649,59 +1072,86 @@ function CreateTicket() {
           </div>
 
 
-          {/* AI Info */}
+          {/* AI CARD */}
+
           <div className="ai-info-card">
 
             <div className="ai-info-icon">
               ✦
             </div>
 
-            <h3>AI-Powered Triage</h3>
+            <h3>
+              AI-Powered Triage
+            </h3>
 
             <p>
               After you submit your ticket, our AI will
               analyze your issue and suggest:
             </p>
 
+
             <div className="ai-feature">
+
               <span>✓</span>
 
               <div>
-                <strong>Category</strong>
+
+                <strong>
+                  Category
+                </strong>
 
                 <small>
                   Identify the type of issue
                 </small>
+
               </div>
+
             </div>
 
+
             <div className="ai-feature">
+
               <span>✓</span>
 
               <div>
-                <strong>Priority</strong>
+
+                <strong>
+                  Priority
+                </strong>
 
                 <small>
                   Determine how urgent it is
                 </small>
+
               </div>
+
             </div>
 
+
             <div className="ai-feature">
+
               <span>✓</span>
 
               <div>
-                <strong>Summary</strong>
+
+                <strong>
+                  Summary
+                </strong>
 
                 <small>
                   Create a short issue summary
                 </small>
+
               </div>
+
             </div>
 
+
             <div className="ai-note">
+
               💡 An agent will review the AI suggestions
               before they are finalized.
+
             </div>
 
           </div>
@@ -714,67 +1164,112 @@ function CreateTicket() {
   );
 }
 
+
+/* =========================
+   LOGIN
+========================= */
+
 function Login() {
+
   const navigate = useNavigate();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
-  const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [showPassword, setShowPassword] =
+    useState(false);
+
+  const [loading, setLoading] =
+    useState(false);
+
+  const [error, setError] =
+    useState("");
+
 
   const handleLogin = async (e) => {
+
     e.preventDefault();
 
     setError("");
 
-    if (!email.trim() || !password.trim()) {
-      setError("Please enter your email and password.");
+
+    if (
+      !email.trim() ||
+      !password.trim()
+    ) {
+
+      setError(
+        "Please enter your email and password."
+      );
+
       return;
     }
 
+
     try {
+
       setLoading(true);
 
+
       const response = await axios.post(
-        "http://localhost:5000/api/auth/login",
+        `${API_URL}/api/auth/login`,
         {
-          email,
+          email: email.trim(),
           password
         }
       );
 
-      console.log("Login response:", response.data);
 
-      /*
-        Different backends may return the token
-        under different property names.
-      */
+      console.log(
+        "Login response:",
+        response.data
+      );
+
+
       const token =
         response.data.token ||
         response.data.accessToken ||
         response.data.user?.token;
 
+
       if (!token) {
-        setError("Login successful, but no token was returned.");
+
+        setError(
+          "Login successful, but no token was returned."
+        );
+
         return;
       }
 
-      localStorage.setItem("token", token);
 
-      // Save user data if backend provides it
+      localStorage.setItem(
+        "token",
+        token
+      );
+
+
       if (response.data.user) {
+
         localStorage.setItem(
           "user",
-          JSON.stringify(response.data.user)
+          JSON.stringify(
+            response.data.user
+          )
         );
+
       }
+
 
       navigate("/dashboard");
 
+
     } catch (err) {
-      console.error("Login error:", err);
+
+      console.error(
+        "Login error:",
+        err
+      );
+
 
       setError(
         err.response?.data?.message ||
@@ -782,30 +1277,53 @@ function Login() {
       );
 
     } finally {
+
       setLoading(false);
+
     }
   };
 
+
   return (
+
     <div className="login-page">
 
       <div className="login-card">
 
+
         <div className="brand">
-          <div className="brand-icon">S</div>
+
+          <div className="brand-icon">
+            S
+          </div>
 
           <div>
-            <h1>SupportDesk</h1>
-            <p>Customer Support System</p>
+
+            <h1>
+              SupportDesk
+            </h1>
+
+            <p>
+              Customer Support System
+            </p>
+
           </div>
+
         </div>
 
+
         <div className="login-heading">
-          <h2>Welcome back 👋</h2>
+
+          <h2>
+            Welcome back 👋
+          </h2>
+
           <p>
             Sign in to manage your support tickets.
           </p>
+
         </div>
+
 
         {error && (
           <div className="alert error-alert">
@@ -813,14 +1331,18 @@ function Login() {
           </div>
         )}
 
+
         <form
           className="login-form"
           onSubmit={handleLogin}
         >
 
+
           <div className="form-group">
 
-            <label>Email Address</label>
+            <label>
+              Email Address
+            </label>
 
             <input
               type="email"
@@ -829,6 +1351,7 @@ function Login() {
               onChange={(e) =>
                 setEmail(e.target.value)
               }
+              required
             />
 
           </div>
@@ -838,18 +1361,25 @@ function Login() {
 
             <div className="password-label">
 
-              <label>Password</label>
+              <label>
+                Password
+              </label>
 
               <button
                 type="button"
                 onClick={() =>
-                  setShowPassword(!showPassword)
+                  setShowPassword(
+                    !showPassword
+                  )
                 }
               >
-                {showPassword ? "Hide" : "Show"}
+                {showPassword
+                  ? "Hide"
+                  : "Show"}
               </button>
 
             </div>
+
 
             <input
               type={
@@ -860,8 +1390,11 @@ function Login() {
               placeholder="Enter your password"
               value={password}
               onChange={(e) =>
-                setPassword(e.target.value)
+                setPassword(
+                  e.target.value
+                )
               }
+              required
             />
 
           </div>
@@ -870,9 +1403,17 @@ function Login() {
           <div className="login-options">
 
             <label className="remember">
-              <input type="checkbox" />
-              <span>Remember me</span>
+
+              <input
+                type="checkbox"
+              />
+
+              <span>
+                Remember me
+              </span>
+
             </label>
+
 
             <button
               type="button"
@@ -889,9 +1430,11 @@ function Login() {
             className="login-btn"
             disabled={loading}
           >
+
             {loading
               ? "Signing in..."
               : "Sign In"}
+
           </button>
 
         </form>
@@ -914,70 +1457,127 @@ function Login() {
 
 
       <div className="login-footer">
-        <span>© 2026 SupportDesk</span>
-        <span>Secure & Reliable Support</span>
+
+        <span>
+          © 2026 SupportDesk
+        </span>
+
+        <span>
+          Secure & Reliable Support
+        </span>
+
       </div>
 
     </div>
   );
 }
 
+
+/* =========================
+   REGISTER
+========================= */
+
 function Register() {
+
   const navigate = useNavigate();
 
-  const [showPassword, setShowPassword] = useState(false);
+  const [showPassword, setShowPassword] =
+    useState(false);
 
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [role, setRole] = useState("customer");
+  const [name, setName] =
+    useState("");
 
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
+  const [email, setEmail] =
+    useState("");
+
+  const [password, setPassword] =
+    useState("");
+
+  const [role, setRole] =
+    useState("customer");
+
+  const [loading, setLoading] =
+    useState(false);
+
+  const [error, setError] =
+    useState("");
+
+  const [success, setSuccess] =
+    useState("");
+
 
   const handleRegister = async (e) => {
+
     e.preventDefault();
 
     setError("");
     setSuccess("");
 
-    if (!name.trim() || !email.trim() || !password.trim()) {
-      setError("Please fill in all required fields.");
+
+    if (
+      !name.trim() ||
+      !email.trim() ||
+      !password.trim()
+    ) {
+
+      setError(
+        "Please fill in all required fields."
+      );
+
       return;
     }
+
 
     if (password.length < 6) {
-      setError("Password must be at least 6 characters.");
+
+      setError(
+        "Password must be at least 6 characters."
+      );
+
       return;
     }
 
+
     try {
+
       setLoading(true);
 
+
       const response = await axios.post(
-        "http://localhost:5000/api/auth/register",
+        `${API_URL}/api/auth/register`,
         {
-          name,
-          email,
+          name: name.trim(),
+          email: email.trim(),
           password,
           role
         }
       );
 
-      console.log("Register response:", response.data);
+
+      console.log(
+        "Register response:",
+        response.data
+      );
+
 
       setSuccess(
         response.data.message ||
         "Account created successfully!"
       );
 
+
       setTimeout(() => {
         navigate("/");
       }, 1500);
 
+
     } catch (err) {
-      console.error("Register error:", err);
+
+      console.error(
+        "Register error:",
+        err
+      );
+
 
       setError(
         err.response?.data?.message ||
@@ -985,31 +1585,51 @@ function Register() {
       );
 
     } finally {
+
       setLoading(false);
+
     }
   };
 
+
   return (
+
     <div className="login-page">
 
       <div className="login-card">
 
+
         <div className="brand">
-          <div className="brand-icon">S</div>
+
+          <div className="brand-icon">
+            S
+          </div>
 
           <div>
-            <h1>SupportDesk</h1>
-            <p>Customer Support System</p>
+
+            <h1>
+              SupportDesk
+            </h1>
+
+            <p>
+              Customer Support System
+            </p>
+
           </div>
+
         </div>
 
 
         <div className="login-heading">
-          <h2>Create your account</h2>
+
+          <h2>
+            Create your account
+          </h2>
 
           <p>
             Join SupportDesk and manage your support requests.
           </p>
+
         </div>
 
 
@@ -1032,10 +1652,12 @@ function Register() {
           onSubmit={handleRegister}
         >
 
-          {/* Name */}
+
           <div className="form-group">
 
-            <label>Full Name</label>
+            <label>
+              Full Name
+            </label>
 
             <input
               type="text"
@@ -1044,15 +1666,17 @@ function Register() {
               onChange={(e) =>
                 setName(e.target.value)
               }
+              required
             />
 
           </div>
 
 
-          {/* Email */}
           <div className="form-group">
 
-            <label>Email Address</label>
+            <label>
+              Email Address
+            </label>
 
             <input
               type="email"
@@ -1061,28 +1685,35 @@ function Register() {
               onChange={(e) =>
                 setEmail(e.target.value)
               }
+              required
             />
 
           </div>
 
 
-          {/* Password */}
           <div className="form-group">
 
             <div className="password-label">
 
-              <label>Password</label>
+              <label>
+                Password
+              </label>
 
               <button
                 type="button"
                 onClick={() =>
-                  setShowPassword(!showPassword)
+                  setShowPassword(
+                    !showPassword
+                  )
                 }
               >
-                {showPassword ? "Hide" : "Show"}
+                {showPassword
+                  ? "Hide"
+                  : "Show"}
               </button>
 
             </div>
+
 
             <input
               type={
@@ -1093,17 +1724,21 @@ function Register() {
               placeholder="Create a password"
               value={password}
               onChange={(e) =>
-                setPassword(e.target.value)
+                setPassword(
+                  e.target.value
+                )
               }
+              required
             />
 
           </div>
 
 
-          {/* Role */}
           <div className="form-group">
 
-            <label>Account Type</label>
+            <label>
+              Account Type
+            </label>
 
             <select
               className="role-select"
@@ -1126,15 +1761,16 @@ function Register() {
           </div>
 
 
-          {/* Submit */}
           <button
             type="submit"
             className="login-btn"
             disabled={loading}
           >
+
             {loading
               ? "Creating Account..."
               : "Create Account"}
+
           </button>
 
         </form>
@@ -1157,30 +1793,99 @@ function Register() {
 
 
       <div className="login-footer">
-        <span>© 2026 SupportDesk</span>
-        <span>Secure & Reliable Support</span>
+
+        <span>
+          © 2026 SupportDesk
+        </span>
+
+        <span>
+          Secure & Reliable Support
+        </span>
+
       </div>
 
     </div>
   );
 }
 
+
+/* =========================
+   APP ROUTES
+========================= */
+
 function App() {
+
   return (
+
     <Routes>
-      <Route path="/" element={<Login />} />
-      <Route path="/register" element={<Register />} />
+
+      {/* LOGIN */}
+
+      <Route
+        path="/"
+        element={<Login />}
+      />
+
+
+      {/* REGISTER */}
+
+      <Route
+        path="/register"
+        element={<Register />}
+      />
+
+
+      {/* DASHBOARD */}
 
       <Route
         path="/dashboard"
-        element={<CustomerDashboard />}
+        element={
+          <ProtectedRoute>
+            <CustomerDashboard />
+          </ProtectedRoute>
+        }
       />
+
+
+      {/* MY TICKETS */}
+
+      <Route
+        path="/tickets"
+        element={
+          <ProtectedRoute>
+            <MyTickets />
+          </ProtectedRoute>
+        }
+      />
+
+
+      {/* CREATE TICKET */}
 
       <Route
         path="/create-ticket"
-        element={<CreateTicket />}
+        element={
+          <ProtectedRoute>
+            <CreateTicket />
+          </ProtectedRoute>
+        }
       />
+
+
+      {/* UNKNOWN URL */}
+
+      <Route
+        path="*"
+        element={
+          <Navigate
+            to="/"
+            replace
+          />
+        }
+      />
+
     </Routes>
   );
 }
+
+
 export default App;
